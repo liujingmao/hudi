@@ -68,11 +68,18 @@ import static org.apache.hudi.common.table.timeline.HoodieTimeline.GREATER_THAN_
 import static org.apache.hudi.common.table.timeline.HoodieTimeline.METADATA_BOOTSTRAP_INSTANT_TS;
 
 /**
- * Common thread-safe implementation for multiple TableFileSystemView Implementations. Provides uniform handling of (a)
- * Loading file-system views from underlying file-system (b) Pending compaction operations and changing file-system
- * views based on that (c) Thread-safety in loading and managing file system views for this table. (d) resetting
- * file-system views The actual mechanism of fetching file slices from different view storages is delegated to
+ * Common thread-safe implementation for multiple TableFileSystemView Implementations. Provides uniform handling of
+ * (a) Loading file-system views from underlying file-system
+ * (b) Pending compaction operations and changing file-system
+ * views based on that
+ * (c) Thread-safety in loading and managing file system views for this table.
+ * (d) resetting file-system views The actual mechanism of fetching file slices from different view storages is delegated to
  * sub-classes.
+ *
+ * 1.从已经有的文件系统中文件系统视图；
+ * 2.追加合并操作和改变文件系统视图基于线程安全在加载和管理文件系统视图的时候；
+ * 3.重置文件系统视图
+ * 4. 从不同视图存储拉取文件块的真实机制是将这个过程委托给其子类
  */
 public abstract class AbstractTableFileSystemView implements SyncableFileSystemView, Serializable {
 
@@ -81,13 +88,17 @@ public abstract class AbstractTableFileSystemView implements SyncableFileSystemV
   protected HoodieTableMetaClient metaClient;
 
   // This is the commits timeline that will be visible for all views extending this view
+
   private HoodieTimeline visibleCommitsAndCompactionTimeline;
 
   // Used to concurrently load and populate partition views
+  // 用于并发加载和操作分区视图
   private final ConcurrentHashMap<String, Boolean> addedPartitions = new ConcurrentHashMap<>(4096);
 
   // Locks to control concurrency. Sync operations use write-lock blocking all fetch operations.
+  // 锁控制并发，同步操作使用写锁阻塞所有的fetch操作
   // For the common-case, we allow concurrent read of single or multiple partitions
+  // 对于通常情况，我们允许并发读单个分区或者多个分区
   private final ReentrantReadWriteLock globalLock = new ReentrantReadWriteLock();
   private final ReadLock readLock = globalLock.readLock();
   private final WriteLock writeLock = globalLock.writeLock();
